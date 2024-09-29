@@ -2,3 +2,17 @@
 *.vim
 *.o
 *.txt
+
+main
+
+INS/Drivers/*
+INS/Debug/*
+INS/Core/Startup/*
+INS/.cproject
+INS/.mxproject
+INS/.project
+INS/.settings/language.settings.xml
+INS/.settings/stm32cubeide.project.prefs
+
+*.launch
+*.ld

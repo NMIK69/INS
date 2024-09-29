@@ -23,7 +23,6 @@
 
 #define ACCEL_CONV 8192.0
 #define GYRO_CONV 16.4 
-#define MM_PI 3.14159265358979323846f
 #define AVG_CNT_NUM 10
 
 static void left_shift(size_t n);
@@ -250,9 +249,9 @@ static void convert(size_t i)
 
 	mea.gyro.z = (int16_t)(((int16_t)raw_data[i + 12] << 8) | raw_data[i + 13]) / GYRO_CONV;
 
-	mea.gyro.x = mea.gyro.x * MM_PI / 180.0f;
-	mea.gyro.y = mea.gyro.y * MM_PI / 180.0f;
-	mea.gyro.z = mea.gyro.z * MM_PI / 180.0f;
+	mea.gyro.x = mea.gyro.x * M_PI / 180.0f;
+	mea.gyro.y = mea.gyro.y * M_PI / 180.0f;
+	mea.gyro.z = mea.gyro.z * M_PI / 180.0f;
 
 	float *q_ptr = (float *)(&raw_data[i + 14]);
 	mea.q.w = q_ptr[0];
