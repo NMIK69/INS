@@ -9,6 +9,26 @@
 
 static WINDOW *main_win;
 
+static void draw_main_box(size_t x1, size_t y1, size_t x2, size_t y2)
+{
+	assert(x2 > x1 && y2 > y1);
+	size_t w = x2 - x1;
+	size_t h = y2 - y1;
+	
+	attron(A_STANDOUT); 
+	mvvline(y1, x1, ACS_VLINE, h);
+	mvvline(y1, x2, ACS_VLINE, h);
+	mvhline(y1, x1, ACS_HLINE, w);
+	mvhline(y2, x1, ACS_HLINE, w);
+	mvaddch(y1, x1, ACS_ULCORNER);
+	mvaddch(y1, x2, ACS_URCORNER);
+	mvaddch(y2, x1, ACS_LLCORNER);
+	mvaddch(y2, x2, ACS_LRCORNER);
+	mvaddstr(y1, 35, "Live-Data");
+	attroff(A_STANDOUT); 
+	refresh();
+}
+
 struct sensor_gui *init_gui(void)
 {
 	main_win = initscr();
@@ -24,18 +44,6 @@ struct sensor_gui *init_gui(void)
 	struct sensor_gui *gui = malloc(sizeof(*gui));
 	assert(gui != NULL);
 
-	//attron(A_STANDOUT); 
-	//mvvline(1, 1, ACS_VLINE, 11);
-	//mvvline(1, 25 * 3 + 5, ACS_VLINE, 11);
-	//mvhline(1, 1, ACS_HLINE, 25 * 3 + 5);
-	//mvhline(11 , 1, ACS_HLINE, 25 * 3 + 5);
-	//mvaddch(1, 1, ACS_ULCORNER);
-	//mvaddch(1, 25 * 3 + 5, ACS_URCORNER);
-	//mvaddch(11, 1, ACS_LLCORNER);
-	//mvaddch(11, 25 * 3 + 5, ACS_LRCORNER);
-	//mvaddstr(1, 35, "Live-Data");
-	//attroff(A_STANDOUT); 
-	//refresh();
 
 	gui->accel_display.height = 7;
 	gui->accel_display.width = 20;
@@ -93,6 +101,10 @@ struct sensor_gui *init_gui(void)
 				      gui->avg_display.yloc,
 				      gui->avg_display.xloc);
 
+	draw_main_box(gui->accel_display.xloc - 2,
+		      gui->accel_display.yloc - 2,
+		      gui->angle_display.xloc + gui->angle_display.width + 1,
+		      gui->avg_display.yloc + gui->avg_display.height + 3);
 
 	return gui;
 }
