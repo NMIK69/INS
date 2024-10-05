@@ -3,6 +3,8 @@
 *.o
 *.txt
 
+todo.md
+
 main
 
 INS/Drivers/*
