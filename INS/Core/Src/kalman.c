@@ -82,9 +82,14 @@ void kf_set_aref(struct kalman_filter *kf, float ax, float ay, float az)
 {
 	struct vec3f anorm = norm_accel(ax, ay, az);	
 
-	kf->ax_ref = anorm.x;
-	kf->ay_ref = anorm.y; 
-	kf->az_ref = anorm.z; 
+	//kf->ax_ref = anorm.x;
+	//kf->ay_ref = anorm.y; 
+	//kf->az_ref = anorm.z; 
+
+	kf->ax_ref = ax;
+	kf->ay_ref = ay; 
+	kf->az_ref = az; 
+
 }
 
 
@@ -110,13 +115,14 @@ int kf_filt(struct kalman_filter *kf,
 	   float wx, float wy, float wz,
 	   float ax, float ay, float az)
 {
-	struct vec3f anorm = norm_accel(ax, ay, az);	
+	//struct vec3f anorm = norm_accel(ax, ay, az);	
 
 	int err = kf_predict(kf, wx, wy, wz);
 	if(err != 0)
 		return err;
 	
-	err = kf_update(kf, anorm.x, anorm.y, anorm.z);
+	//err = kf_update(kf, anorm.x, anorm.y, anorm.z);
+	err = kf_update(kf, ax, ay, az);
 	if(err != 0)
 		return err;
 
