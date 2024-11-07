@@ -9,6 +9,10 @@
 static float mpu6050_gyro_lsbs;
 static float mpu6050_accel_lsbs;
 
+static float gbias_x = 0.0f;
+static float gbias_y = 0.0f;
+static float gbias_z = 0.0f;
+
 static I2C_HandleTypeDef *mpu6050_hi2c;
 
 inline static int is_valid_mpu6050_reg(uint16_t reg);
@@ -94,6 +98,12 @@ void mpu6050_configure(struct mpu6050_config *conf)
 		mpu6050_enable_latch_int_rd_clear();
 }
 
+void mpu6050_set_gyro_bias(float x, float y, float z)
+{
+	gbias_x = x;
+	gbias_y = y;
+	gbias_z = z;
+}
 
 struct mpu6050_measurement mpu6050_decode_raw(const uint8_t *raw_data)
 {
@@ -111,6 +121,10 @@ struct mpu6050_measurement mpu6050_decode_raw(const uint8_t *raw_data)
 	mea.gyro.x = mea.gyro.x * M_PI / 180.0f;
 	mea.gyro.y = mea.gyro.y * M_PI / 180.0f;
 	mea.gyro.z = mea.gyro.z * M_PI / 180.0f;
+
+	mea.gyro.x += gbias_x;
+	mea.gyro.y += gbias_y;
+	mea.gyro.z += gbias_z;
 
 	return mea;
 }

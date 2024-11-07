@@ -21,7 +21,7 @@
 /* transmit all raw measurement values + orientation as quaternion (4 floats)
    + timestamp (one uint32_t) + measurement start identifier byte. */
 #define TRANSMIT_DATA_SIZE\
-	((MPU6050_RAW_DATA_SIZE) +\
+	((sizeof(float) * 6) +\
 	 (sizeof(float) * 4) +\
 	 (sizeof(uint32_t)) +\
 	 (sizeof(uint8_t)))\
@@ -33,14 +33,17 @@ static size_t mea_end = 0;
 static uint32_t mea_ts = 0;
 
 static int mpu6050_ready = 0;
+static int ins_ready = 0;
 
 static float aref_x = 0.0f;
 static float aref_y = 0.0f;
 static float aref_z = 0.0f;
 
+static float gbias_x = 0.0f;
+static float gbias_y = 0.0f;
+static float gbias_z = 0.0f;
+
 static struct kalman_filter *kf;
-static int kf_ready = 0;
-static int kf_ref_count = 0;
 
 static int kf_i = 0;
 
@@ -52,34 +55,75 @@ int _write(int file, char *ptr, int len) {
 	return len;
 }
 
-static void make_kf_a_ref(struct mpu6050_measurement *mea)
+static int is_spike(struct mpu6050_measurement *mea)
 {
-	if(kf_ref_count < 20) {
+	if((mea->accel.x > 1.2 || mea->accel.x < -1.2) ||
+	   (mea->accel.y > 1.2 || mea->accel.y < -1.2) ||
+	   (mea->accel.z > 1.2 || mea->accel.z < -1.2) ||
+	   (mea->gyro.x > 0.1 || mea->gyro.x < -0.1) ||
+	   (mea->gyro.y > 0.1 || mea->gyro.y < -0.1) || 
+	   (mea->gyro.z > 0.1 || mea->gyro.z < -0.1)) {
+		return 1;
+	}
+
+	return 0;
+}
+
+static void ins_dyn_init(struct mpu6050_measurement *mea)
+{
+	static int cnt = 0;
+
+	/* obtain avg of accel (for kf) */
+	/* obtain avg of ang vel (for gyro bias) */
+	if(cnt < 5000) {
+		if(is_spike(mea) == 1)
+			return;
+
 		aref_x += mea->accel.x;
 		aref_y += mea->accel.y;
 		aref_z += mea->accel.z;
-		kf_ref_count += 1;
+
+		gbias_x += mea->gyro.x;
+		gbias_y += mea->gyro.y;
+		gbias_z += mea->gyro.z;
+
+		cnt += 1;
 	}
 	else {
-		kf_ready = 1;
+		aref_x = aref_x / cnt;
+		aref_y = aref_y / cnt;
+		aref_z = aref_z / cnt;
+
+		gbias_x = -gbias_x / cnt;
+		gbias_y = -gbias_y / cnt;
+		gbias_z = -gbias_z / cnt;
+
 		kf_set_aref(kf, aref_x, aref_y, aref_z);
+		mpu6050_set_gyro_bias(gbias_x, gbias_y, gbias_z);
+
+		cnt = 0;
+		ins_ready = 1;
 	}
 }
 
-static void transmit_measurements(struct quaternion q, const uint8_t *raw_data)
+static void transmit_measurements(struct quaternion q, struct mpu6050_measurement mea)
 {
-	/* copy raw data read from mpu6050 to transmit buffer */
-	memcpy(&transmit_buf[1], raw_data, MPU6050_RAW_DATA_SIZE);
+	/* copy data read from mpu6050 to transmit buffer */
+	float m_arr[] = {mea.accel.x, mea.accel.y, mea.accel.z,
+			 mea.gyro.x, mea.gyro.y, mea.gyro.z};
+	memcpy(&transmit_buf[1], m_arr, sizeof(m_arr));
 
 	/* copy estimated orientation as quaternion into transmit buffer after
 	 * raw data. */
-	size_t q_pos = 1 + MPU6050_RAW_DATA_SIZE;
-	float q_arr[sizeof(q.w) * 4] = {q.w, q.x, q.y, q.z};
-	memcpy(&transmit_buf[q_pos], q_arr, ARR_SIZE(q_arr));
+	size_t q_pos = 1 + sizeof(m_arr);
+	float q_arr[] = {q.w, q.x, q.y, q.z};
+	//struct quaternion qt = {1.23, 4.56, 7.89, 10.1112};
+	//float q_arr[] = {qt.w, qt.x, qt.y, qt.z};
+	memcpy(&transmit_buf[q_pos], q_arr, sizeof(q_arr));
 
 	/* copy timestamp to transmit buffer after orientation quaternion. */
 	/* TODO: use rtc to make timestamps. */
-	size_t ts_pos = q_pos + ARR_SIZE(q_arr);
+	size_t ts_pos = q_pos + sizeof(q_arr);
 	memcpy(&transmit_buf[ts_pos], &mea_ts, sizeof(mea_ts));
 
 
@@ -94,7 +138,6 @@ static void transmit_measurements(struct quaternion q, const uint8_t *raw_data)
 
 	assert(ret == HAL_OK);
 }
-
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
@@ -146,7 +189,7 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
 }
 
 
-static void ins_init(void)
+static void ins_setup(void)
 {
 	HAL_Delay(1000);
 
@@ -163,8 +206,10 @@ static void ins_init(void)
 	mpu6050_configure(&conf);
 	
 	float dt = 1.0f/(float)conf.smplrt;
-	float var_a = 0.01*0.01;
-	float var_w = 0.003*0.003;
+	//float var_a = 0.01*0.01;
+	//float var_w = 0.003*0.003;
+	float var_a = 0.005*0.005;
+	float var_w = 0.001*0.001;
 	float var_P = 0.000001;
 	kf = kf_init(dt, var_a, var_w, var_P);
 	/* state quaternion is identity quaternion by default. */
@@ -172,9 +217,10 @@ static void ins_init(void)
 	mpu6050_ready = 1;
 }
 
+
 void ins_run(void)
 {
-	ins_init();
+	ins_setup();
 
 	size_t i = 0;
 	size_t tx_rate_cnt = 0;
@@ -185,12 +231,11 @@ void ins_run(void)
 			assert(i < ARR_SIZE(mea_buf));
 
 			struct mpu6050_measurement mea = mpu6050_decode_raw(mea_buf[i]);
-
-			if(kf_ready == 0) {
-				make_kf_a_ref(&mea);
+			
+			if(ins_ready == 0) {
+				ins_dyn_init(&mea);
 			}
 			else {
-				
 				int err = kf_filt(kf, 
 					mea.gyro.x, mea.gyro.y, mea.gyro.z,
 					mea.accel.x, mea.accel.y, mea.accel.z);
@@ -199,7 +244,7 @@ void ins_run(void)
 
 				tx_rate_cnt += 1;
 				if(tx_rate_cnt == 100) {
-					transmit_measurements(kf->q, mea_buf[i]);
+					transmit_measurements(kf->q, mea);
 					tx_rate_cnt = 0;
 				}
 			}

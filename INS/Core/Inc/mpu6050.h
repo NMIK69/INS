@@ -81,6 +81,7 @@ struct mpu6050_config
 
 void mpu6050_configure(struct mpu6050_config *conf);
 struct mpu6050_measurement mpu6050_decode_raw(const uint8_t *raw_data);
+void mpu6050_set_gyro_bias(float x, float y, float z);
 HAL_StatusTypeDef mpu6050_read_it(
 		uint16_t base_reg, uint16_t nregs, 
 		uint8_t *rec_data);
