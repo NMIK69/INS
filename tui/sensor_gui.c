@@ -103,8 +103,8 @@ struct sensor_gui *init_gui(void)
 
 	draw_main_box(gui->accel_display.xloc - 2,
 		      gui->accel_display.yloc - 2,
-		      gui->angle_display.xloc + gui->angle_display.width + 1,
-		      gui->avg_display.yloc + gui->avg_display.height + 3);
+		      gui->angle_display.xloc + gui->angle_display.width + 2,
+		      gui->avg_display.yloc + gui->avg_display.height + 2);
 
 	return gui;
 }
