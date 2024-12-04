@@ -215,11 +215,10 @@ static void save_to_file()
 {
 
 	fprintf(out_file, 
-		"%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+		"%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
 		mea.timestamp,
 		mea.accel.x, mea.accel.y, mea.accel.z,
-		mea.gyro.x, mea.gyro.y, mea.gyro.z,
-		mea.temperature);
+		mea.gyro.x, mea.gyro.y, mea.gyro.z);
 
 	assert(ferror(out_file) == 0);
 }

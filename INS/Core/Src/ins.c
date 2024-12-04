@@ -195,7 +195,6 @@ static void transmit_measurements(struct quaternion q, struct mpu6050_measuremen
 	memcpy(&transmit_buf[q_pos], q_arr, sizeof(q_arr));
 
 	/* copy timestamp to transmit buffer after orientation quaternion. */
-	/* TODO: use rtc to make timestamps. */
 	size_t ts_pos = q_pos + sizeof(q_arr);
 	memcpy(&transmit_buf[ts_pos], &mea_ts, sizeof(mea_ts));
 
@@ -244,6 +243,7 @@ void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
 	/* ringbuffer */
 	if(hi2c->Instance == hi2c1.Instance) {
 		HAL_GPIO_TogglePin(I2C_Timing_GPIO_Port, I2C_Timing_Pin);
+		mea_ts = HAL_GetTick();
 		mea_end += 1;
 
 		if(mea_end == ARR_SIZE(mea_buf))
