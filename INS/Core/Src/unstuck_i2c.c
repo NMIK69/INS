@@ -1,11 +1,18 @@
 #include "main.h"
 #include "i2c.h"
+#include "tim.h"
 
 #include "unstuck_i2c.h"
 #include "bitops.h"
 
 static void unstuck_i2c1_rcc_reset(void);
 static void unstuck_i2c1_toggle_scl(void);
+
+void delay_hns(uint16_t us)
+{
+	__HAL_TIM_SET_COUNTER(&htim16,0);
+	while (__HAL_TIM_GET_COUNTER(&htim16) < us);
+}
 
 void unstuck_i2c1(void)
 {
@@ -39,19 +46,13 @@ static void unstuck_i2c1_toggle_scl(void)
 	HAL_GPIO_Init(I2C1_SCL_GPIO_Port, &scl_gpio);
 
 	/* 2. toggle SCL 9 times. */
-	volatile uint8_t i = 0;
-	volatile uint8_t c = 0;
+	uint8_t i = 0;
 	while(i < 9) {
 		HAL_GPIO_WritePin(I2C1_SCL_GPIO_Port, I2C1_SCL_Pin, GPIO_PIN_RESET);
-		//delay_hns(20);
-		/* TODO make and use timer */
-		while(c++ < 14);
+		delay_hns(10);
 
 		HAL_GPIO_WritePin(I2C1_SCL_GPIO_Port, I2C1_SCL_Pin, GPIO_PIN_SET);
-		/* TODO make and use timer */
-		//delay_hns(6);
-		c = 0;
-		c = 0;
+		delay_hns(3);
 
 		i += 1;
 	}
