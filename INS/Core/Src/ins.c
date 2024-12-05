@@ -44,6 +44,32 @@ static float gbias_x = 0.0f;
 static float gbias_y = 0.0f;
 static float gbias_z = 0.0f;
 
+static float M_accel[3][3] = {
+		{0.9943855091000198, 2.9808918530172742e-05, -0.0011450162924294836},
+		{3.20642415919627e-05, 0.9994929778707495, -0.0003715308243724956},
+		{-0.0011182699502468357, -0.00037135974559032503, 0.9864961817776355}
+				};
+
+static float b_accel[3] = {-0.010676239989301017, 0.005607300288838767, 0.08004243782803752};
+
+static void apply_cal_params(struct mpu6050_measurement *mea)
+{
+	mea->accel.x = (mea->accel.x * M_accel[0][0]) + 
+		       (mea->accel.y * M_accel[0][1]) +
+		       (mea->accel.z * M_accel[0][2]) +
+		       b_accel[0];
+
+	mea->accel.y = (mea->accel.x * M_accel[1][0]) + 
+		       (mea->accel.y * M_accel[1][1]) +
+		       (mea->accel.z * M_accel[1][2]) +
+		       b_accel[1];
+
+	mea->accel.z = (mea->accel.x * M_accel[2][0]) + 
+		       (mea->accel.y * M_accel[2][1]) +
+		       (mea->accel.z * M_accel[2][2]) +
+		       b_accel[2];
+}
+
 static struct kalman_filter *kf;
 
 static int kf_i = 0;
@@ -268,7 +294,7 @@ static void ins_setup(void)
 
 	struct mpu6050_config conf = {0};
 	conf.hi2c = &hi2c1; 
-	conf.dplf_cfg = 2;
+	conf.dplf_cfg = 4;
 	conf.smplrt = MPU6050_SMPLRT_500HZ;
 	conf.accel_fs_sel = MPU6050_ACCEL_FSR_4G;
 	conf.gyro_fs_sel = MPU6050_GYRO_FSR_2000DPS;
@@ -290,31 +316,6 @@ static void ins_setup(void)
 	mpu6050_ready = 1;
 }
 
-//float maxx, minx;
-//float maxy, miny;
-//float maxz, minz;
-//
-//static void get_minmax(struct mpu6050_measurement *mea)
-//{
-//	maxx = mea->accel.x > maxx ? mea->accel.x : maxx;
-//	maxy = mea->accel.y > maxy ? mea->accel.y : maxy;
-//	maxz = mea->accel.z > maxz ? mea->accel.z : maxz;
-//
-//	minx = mea->accel.x < minx ? mea->accel.x : minx;
-//	miny = mea->accel.y < miny ? mea->accel.y : miny;
-//	minz = mea->accel.z < minz ? mea->accel.z : minz;
-//}
-//
-//static void get_minmax2(struct mpu6050_measurement *mea)
-//{
-//	maxx = mea->gyro.x > maxx ? mea->gyro.x : maxx;
-//	maxy = mea->gyro.y > maxy ? mea->gyro.y : maxy;
-//	maxz = mea->gyro.z > maxz ? mea->gyro.z : maxz;
-//	minx = mea->gyro.x < minx ? mea->gyro.x : minx;
-//	miny = mea->gyro.y < miny ? mea->gyro.y : miny;
-//	minz = mea->gyro.z < minz ? mea->gyro.z : minz;
-//}
-
 void ins_run(void)
 {
 	ins_setup();
@@ -328,6 +329,7 @@ void ins_run(void)
 			assert(i < ARR_SIZE(mea_buf));
 
 			struct mpu6050_measurement mea = mpu6050_decode_raw(mea_buf[i]);
+			apply_cal_params(&mea);
 
 			//get_minmax2(&mea);
 
@@ -346,13 +348,13 @@ void ins_run(void)
 				outlier_filter();
 
 				int err = kf_filt(kf, 
-					-curr.gyro.x, -curr.gyro.y, -curr.gyro.z,
+					-curr.gyro.x, -curr.gyro.y, curr.gyro.z,
 					curr.accel.x, curr.accel.y, curr.accel.z);
 
 				assert(err == 0);
 
 				tx_rate_cnt += 1;
-				if(tx_rate_cnt == 2) {
+				if(tx_rate_cnt == 10) {
 					transmit_measurements(kf->q, curr);
 					tx_rate_cnt = 0;
 				}
