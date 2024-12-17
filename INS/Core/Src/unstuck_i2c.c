@@ -8,6 +8,8 @@
 static void unstuck_i2c1_rcc_reset(void);
 static void unstuck_i2c1_toggle_scl(void);
 
+/* delay in hunreds of nano secons */
+/* for exampel delay_hns(10) would be a delay of 1000ns or 1us */
 void delay_hns(uint16_t us)
 {
 	__HAL_TIM_SET_COUNTER(&htim16,0);
@@ -64,8 +66,6 @@ static void unstuck_i2c1_toggle_scl(void)
 	scl_gpio.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	scl_gpio.Alternate = GPIO_AF4_I2C1;
 	HAL_GPIO_Init(I2C1_SCL_GPIO_Port, &scl_gpio);
-
-	/* TODO: check if SDA is now low. */
 }
 
 
