@@ -20,13 +20,9 @@
 		     (sizeof(float)* 4) +\
 		     (sizeof(uint32_t)))
 
-#define SET_SMPLRT 0
-#define START_SENDING 1
-#define STOP_SENDING 2
-
 #define ACCEL_CONV 8192.0
 #define GYRO_CONV 16.4 
-#define AVG_CNT_NUM 10
+#define AVG_CNT_NUM 250
 
 static void left_shift(size_t n);
 static void fetch_start(void);
@@ -36,6 +32,7 @@ static void save_to_file(void);
 static void process(const uint8_t *tmp, size_t tmp_len);
 static void read_inf(int serial_fd);
 static int handle_cmdln_args(int argc, char **argv);
+static void print_usage(const char *name);
 
 static void save_vec_to_file(struct vec3f *v);
 
@@ -64,14 +61,19 @@ static uint8_t save_static = 0;
 static char *dev_name = NULL;
 
 
-
 static struct sensor_gui *gui;
 
 
 int main(int argc, char **argv)
 {
 	if(handle_cmdln_args(argc, argv) != 0) 
-		exit(0);
+		return 0;
+	
+	if(dev_name == NULL) {
+		print_usage(argv[0]);
+		return 0;
+	}
+
 
 	Serial_Settings ser_set = {
     			.portname = dev_name,
@@ -86,7 +88,10 @@ int main(int argc, char **argv)
 
 	int serial_fd = serial_open_port(&ser_set);
 
-	out_file = fopen("imu_test.txt", "w");
+	if(out_file_name != NULL)
+		out_file = fopen(out_file_name, "w");
+	else
+		out_file = fopen("imu_out.txt", "w");
 	assert(out_file != NULL);
 
 	gui = init_gui();
@@ -231,7 +236,6 @@ static void display()
 	struct vec3f g = {.x=mea.gyro.x, .y=mea.gyro.y, .z=mea.gyro.z};
 	
 	struct vec3f o = quat_to_euler(&mea.q);
-	//struct vec3f o = {.x=mea.q.x, .y=mea.q.y, .z=mea.q.z};
 
 	update_accel_window(gui, &a);
 	update_gyro_window(gui, &g);
@@ -259,41 +263,6 @@ static void fetch_start()
 	}
 }
 
-
-
-//static void convert(size_t i)
-//{
-//	mea.accel.x = (int16_t)(((int16_t)raw_data[i + 0] << 8) | raw_data[i + 1]) / ACCEL_CONV;
-//
-//	mea.accel.y = (int16_t)(((int16_t)raw_data[i + 2] << 8) | raw_data[i + 3]) / ACCEL_CONV;
-//
-//	mea.accel.z = (int16_t)(((int16_t)raw_data[i + 4] << 8) | raw_data[i + 5]) / ACCEL_CONV;
-//
-//	mea.temperature = (int16_t)(((int16_t)raw_data[i + 6] << 8) | 
-//	      			raw_data[i + 7]) / 340.0 + 36.53;
-//
-//	mea.gyro.x = (int16_t)(((int16_t)raw_data[i + 8] << 8)  | raw_data[i + 9]) / GYRO_CONV;
-//
-//	mea.gyro.y = (int16_t)(((int16_t)raw_data[i + 10] << 8) | raw_data[i + 11]) / GYRO_CONV;
-//
-//	mea.gyro.z = (int16_t)(((int16_t)raw_data[i + 12] << 8) | raw_data[i + 13]) / GYRO_CONV;
-//
-//	mea.gyro.x = mea.gyro.x * M_PI / 180.0f;
-//	mea.gyro.y = mea.gyro.y * M_PI / 180.0f;
-//	mea.gyro.z = mea.gyro.z * M_PI / 180.0f;
-//
-//	float *q_ptr = (float *)(&raw_data[i + 14]);
-//	mea.q.w = q_ptr[0];
-//	mea.q.x = q_ptr[1];
-//	mea.q.y = q_ptr[2];
-//	mea.q.z = q_ptr[3];
-//	
-//	mea.timestamp = ((uint32_t)raw_data[i + 33] << 24) |
-//			((uint32_t)raw_data[i + 32] << 16) |
-//			((uint32_t)raw_data[i + 31] << 8)  |
-//			((uint32_t)raw_data[i + 30]);
-//}
-
 static void convert(size_t i)
 {
 	float *fp = (float *)(&raw_data[i]);
@@ -314,13 +283,25 @@ static void convert(size_t i)
 	mea.timestamp = up[10];
 }
 
+static void print_usage(const char *name)
+{
+	fprintf(stderr, "Usage: %s [options] \n"
+			"options:\n"
+	                "\t -d \t Device driver of the connected STM32 (-d /dev/tty...)\n\n"
+			"\t -s \t Save all the received data. By default a file named \n"
+			"\t\t imu_out.txt is created. use -o to specify a file name.\n"
+			"\t\t Format: ax,ay,az,gx,gy,gz\\n \n\n"
+			"\t -o \t The name of the ouput file. (-o my_file.txt)\n\n"
+			"\t -h \t Print this text.\n",
+			name);
+}
 
 static int handle_cmdln_args(int argc, char **argv)
 {
 	opterr = 0;
 	int op;
 
-	while((op = getopt(argc, argv, "o:d:s")) != -1) {
+	while((op = getopt(argc, argv, "h:o:d:s")) != -1) {
 		switch(op) {
 		case 'o':
 			out_file_name = optarg;
@@ -331,6 +312,9 @@ static int handle_cmdln_args(int argc, char **argv)
 		case 's':
 			save_all = 1;
 			break;
+		case 'h':
+			goto usage_err;
+			break;
 		default:
 			goto usage_err;
 
@@ -340,8 +324,7 @@ static int handle_cmdln_args(int argc, char **argv)
 	return 0;
 
 usage_err:
-	fprintf(stderr, "usage error\n");
+	print_usage(argv[0]);
 	return -1;
-	
 }
 

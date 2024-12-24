@@ -5,7 +5,9 @@
 
 todo.md
 
-main
+tui/main
+tui/plot_data.py
+tui/tui
 
 INS/Drivers/*
 INS/Debug/*

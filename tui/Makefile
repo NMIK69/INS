@@ -8,7 +8,7 @@ OBJS=$(patsubst %.c, %.o, $(SRCS))
 
 DEPS=$(wildcard *.h)
 
-TARGET=main
+TARGET=tui
 
 all: $(TARGET)
 
