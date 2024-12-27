@@ -87,6 +87,7 @@ static void ins_dyn_init(struct mpu6050_measurement *mea)
 
 		cnt = 0;
 		ins_ready = 1;
+		HAL_GPIO_WritePin(STATUS_LED_GPIO_Port, STATUS_LED_Pin, GPIO_PIN_RESET);
 	}
 }
 
@@ -211,6 +212,9 @@ void ins_run(void)
 
 	size_t i = 0;
 	size_t tx_rate_cnt = 0;
+
+	HAL_GPIO_WritePin(STATUS_LED_GPIO_Port, STATUS_LED_Pin, GPIO_PIN_SET);
+
 	while(1) {
 		if(i != mea_end) {
 			#ifdef LA_DEBUG_EN

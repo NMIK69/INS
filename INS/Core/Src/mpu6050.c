@@ -161,7 +161,11 @@ static uint8_t mpu6050_read_reg(uint16_t reg)
 					1);
 
 	if(res != HAL_OK) {
+
+		#ifdef LA_DEBUG_EN
 		HAL_GPIO_WritePin(I2C_ERR_INDI_GPIO_Port, I2C_ERR_INDI_Pin, GPIO_PIN_SET);
+		#endif
+
 		unstuck_i2c1();
 		res = HAL_I2C_Mem_Read(
 				mpu6050_hi2c,
