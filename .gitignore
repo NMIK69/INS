@@ -18,5 +18,25 @@ INS/.project
 INS/.settings/language.settings.xml
 INS/.settings/stm32cubeide.project.prefs
 
+INS/Core/Inc/gpio.h
+INS/Core/Inc/i2c.h
+INS/Core/Inc/main.h
+INS/Core/Inc/stm32l4xx_hal_conf.h
+INS/Core/Inc/stm32l4xx_it.h
+INS/Core/Inc/tim.h
+INS/Core/Inc/usart.h
+
+INS/Core/Src/gpio.c
+INS/Core/Src/i2c.c
+INS/Core/Src/stm32l4xx_hal_msp.c
+INS/Core/Src/stm32l4xx_it.c
+INS/Core/Src/syscalls.c
+INS/Core/Src/sysmem.c
+INS/Core/Src/system_stm32l4xx.c
+INS/Core/Src/tim.c
+INS/Core/Src/usart.c
+
+testing/*
+
 *.launch
 *.ld
